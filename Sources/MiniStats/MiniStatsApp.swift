@@ -23,7 +23,7 @@ private enum MenuBarLabel {
     // Render both rows as one template image so the menu bar preserves the layout.
     // Fixed columns and tabular digits keep the item stable as values change.
     static func image(upload: String, download: String, cpu: String) -> NSImage {
-        let image = NSImage(size: NSSize(width: 108, height: 22), flipped: true) { _ in
+        let image = NSImage(size: NSSize(width: 94, height: 22), flipped: true) { _ in
             let font = NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .medium)
             func draw(_ text: String, in rect: NSRect, alignment: NSTextAlignment, font: NSFont) {
                 let paragraph = NSMutableParagraphStyle()
@@ -37,13 +37,13 @@ private enum MenuBarLabel {
             }
             draw("↑", in: NSRect(x: 0, y: 0, width: 10, height: 11), alignment: .center, font: font)
             draw("↓", in: NSRect(x: 0, y: 11, width: 10, height: 11), alignment: .center, font: font)
-            draw(upload, in: NSRect(x: 11, y: 0, width: 56, height: 11), alignment: .left, font: font)
-            draw(download, in: NSRect(x: 11, y: 11, width: 56, height: 11), alignment: .left, font: font)
+            draw(upload, in: NSRect(x: 11, y: 0, width: 46, height: 11), alignment: .left, font: font)
+            draw(download, in: NSRect(x: 11, y: 11, width: 46, height: 11), alignment: .left, font: font)
             NSColor.black.withAlphaComponent(0.25).setFill()
-            NSRect(x: 71, y: 3, width: 1, height: 16).fill()
-            draw("CPU", in: NSRect(x: 78, y: 0, width: 30, height: 11), alignment: .center,
+            NSRect(x: 61, y: 3, width: 1, height: 16).fill()
+            draw("CPU", in: NSRect(x: 65, y: 0, width: 29, height: 11), alignment: .center,
                  font: .systemFont(ofSize: 8, weight: .medium))
-            draw(cpu, in: NSRect(x: 78, y: 11, width: 30, height: 11), alignment: .center, font: font)
+            draw(cpu, in: NSRect(x: 65, y: 11, width: 29, height: 11), alignment: .center, font: font)
             return true
         }
         image.isTemplate = true
