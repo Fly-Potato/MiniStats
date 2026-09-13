@@ -2,6 +2,29 @@ import XCTest
 @testable import MiniStats
 
 final class MetricsTests: XCTestCase {
+    func testSpeedAutomaticallyScalesUnits() {
+        XCTAssertEqual(MetricFormat.speed(0), "0 KB/s")
+        XCTAssertEqual(MetricFormat.speed(12_000), "12 KB/s")
+        XCTAssertEqual(MetricFormat.speed(1_800_000), "1.8 MB/s")
+        XCTAssertEqual(MetricFormat.speed(2_400_000_000), "2.4 GB/s")
+        XCTAssertEqual(MetricFormat.speed(123_000_000), "123 MB/s")
+    }
+
+    func testSpeedPromotesBeforeRoundingToFourDigits() {
+        XCTAssertEqual(MetricFormat.speed(999_499), "999 KB/s")
+        XCTAssertEqual(MetricFormat.speed(999_500), "1.0 MB/s")
+        XCTAssertEqual(MetricFormat.speed(999_500_000), "1.0 GB/s")
+        XCTAssertEqual(MetricFormat.speed(9_950_000), "10 MB/s")
+        XCTAssertEqual(MetricFormat.speed(1_000_000_000_000), "999+ GB/s")
+    }
+
+    func testSpeedHandlesUnavailableAndInvalidValues() {
+        XCTAssertEqual(MetricFormat.speed(nil), "—")
+        XCTAssertEqual(MetricFormat.speed(-1), "—")
+        XCTAssertEqual(MetricFormat.speed(.infinity), "—")
+        XCTAssertEqual(MetricFormat.speed(.nan), "—")
+    }
+
     func testNetworkUsesElapsedTimeAndIgnoresNewInterfaces() {
         let rate = NetworkRate.calculate(
             previous: ["en0": .init(received: 100, sent: 200)],

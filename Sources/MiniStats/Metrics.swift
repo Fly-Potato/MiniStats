@@ -103,9 +103,18 @@ enum SystemMetrics {
 
 enum MetricFormat {
     static func speed(_ bytes: Double?) -> String {
-        guard let bytes else { return "—" }
-        if bytes >= 1_000_000 { return String(format: "%.1f MB/s", bytes / 1_000_000) }
-        return String(format: "%.0f KB/s", bytes / 1_000)
+        guard let bytes, bytes.isFinite, bytes >= 0 else { return "—" }
+        let units = ["KB/s", "MB/s", "GB/s"]
+        var value = bytes / 1_000
+        var unit = 0
+        // Promote before rounding would display four digits, such as 1000 KB/s.
+        while value >= 999.5 && unit < units.count - 1 {
+            value /= 1_000
+            unit += 1
+        }
+        if value >= 999.5 { return "999+ GB/s" }
+        let precision = value > 0 && value < 9.95 ? "%.1f" : "%.0f"
+        return String(format: precision, value) + " " + units[unit]
     }
     static func percent(_ fraction: Double?) -> String {
         fraction.map { String(format: "%.0f%%", $0 * 100) } ?? "—"
