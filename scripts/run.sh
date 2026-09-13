@@ -1,5 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-bash scripts/build.sh
-open dist/MiniStats.app
+CONFIGURATION="${1:-debug}"
+bash scripts/build.sh "$CONFIGURATION"
+if [ "$CONFIGURATION" = debug ]; then
+    open "dist/MiniStats Dev.app"
+else
+    open dist/MiniStats.app
+fi

@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 
 if CommandLine.arguments.contains("--sample") {
+    print("App: \(BuildIdentity.displayName)")
     let monitor = Monitor(automatic: false)
     Thread.sleep(forTimeInterval: 1)
     monitor.sample()

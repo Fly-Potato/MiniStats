@@ -32,6 +32,13 @@ struct Dashboard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("MiniStats", systemImage: "waveform.path.ecg").font(.headline)
+                if BuildIdentity.isDevelopment {
+                    Text("DEV").font(.caption2.bold())
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .foregroundStyle(.orange)
+                        .background(.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 4))
+                        .accessibilityLabel("开发版")
+                }
                 Spacer()
                 Text("实时更新").font(.caption).foregroundStyle(.secondary)
             }

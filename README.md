@@ -16,17 +16,21 @@
 
 需要 macOS 13 或更新版本，以及 Swift 5.9+ 开发工具链（Xcode 或 Command Line Tools）。
 
-以下命令均在仓库根目录执行。构建并启动：
+以下命令均在仓库根目录执行。开发运行（默认 Debug，菜单栏和详情标题显示 `DEV`）：
 
 ```bash
 bash scripts/run.sh
 ```
 
-构建产物位于 `dist/MiniStats.app`，可双击启动。仅构建：
+日常使用的生产运行（Release，不显示 `DEV`）：
 
 ```bash
-bash scripts/build.sh
+bash scripts/run.sh release
 ```
+
+开发版产物为 `dist/MiniStats Dev.app`，生产版为 `dist/MiniStats.app`，均可双击启动。两者应用标识分别为 `local.ministats.app.dev` 和 `local.ministats.app`，可同时运行，设置与内存中的历史记录相互独立。标记由编译配置决定，不能在界面中切换。
+
+仅构建：`bash scripts/build.sh debug` 构建开发版，`bash scripts/build.sh` 默认构建生产版。直接通过 SwiftPM 或 Xcode 使用 Debug 配置运行时也会显示开发标记；需要两版并行时建议使用上述打包脚本。
 
 测试及真实采样（采样命令需要先完成构建）：
 
@@ -58,6 +62,7 @@ CPU 和内存纵轴固定为 0–100%。网络两条线共用从零开始的纵�
 - `Sources/MiniStats/Metrics.swift`：系统采集、差值计算和格式化。
 - `Sources/MiniStats/Monitor.swift`：采样状态和定时更新。
 - `Sources/MiniStats/MiniStatsApp.swift`：应用场景与菜单栏标签。
+- `Sources/MiniStats/BuildIdentity.swift`：按编译配置区分开发版和生产版。
 - `Sources/MiniStats/Dashboard.swift`：详情图表、时间范围切换与悬停交互。
 - `Sources/MiniStats/History.swift`：历史缓存、时间窗口裁剪、峰谷保留与网络纵轴缩放。
 - `Sources/MiniStats/main.swift`：应用入口与命令行采样模式。
