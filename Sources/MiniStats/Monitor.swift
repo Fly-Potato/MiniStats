@@ -6,6 +6,7 @@ final class Monitor: ObservableObject {
     @Published private(set) var memory: MemoryUsage?
     @Published private(set) var network: NetworkRate?
     @Published private(set) var interfaces: [String] = []
+    private(set) var history = MetricHistory()
     private var previousCPU: CPUTicks?
     private var previousNetwork: [String: NetworkCounters]?
     private var previousTime: TimeInterval?
@@ -43,5 +44,7 @@ final class Monitor: ObservableObject {
         previousCPU = ticks
         previousNetwork = counters
         previousTime = now
+        history.append(.init(date: Date(), cpu: cpu, memory: memory?.fraction,
+                             download: network?.download, upload: network?.upload))
     }
 }
