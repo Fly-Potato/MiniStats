@@ -4,11 +4,14 @@ import json
 import pathlib
 import platform
 import plistlib
+import re
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONFIG = json.loads((ROOT / "config/release.json").read_text())
 PUBLIC_KEY = (ROOT / "config/sparkle-public-key.txt").read_text().strip()
+SDK_VERSION = subprocess.run(["xcrun", "--sdk", "macosx", "--show-sdk-version"],
+                             capture_output=True, text=True, check=True).stdout.strip()
 
 
 def require(condition, message):
@@ -49,6 +52,11 @@ for development in (True, False):
     require((framework / "Sparkle").is_file(), f"{name}: 缺少 Sparkle framework")
     subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
     executable = app / "Contents/MacOS/MiniStats"
+    build_metadata = subprocess.run(["xcrun", "vtool", "-show-build", str(executable)],
+                                    capture_output=True, text=True, check=True).stdout
+    linked_sdks = re.findall(r"^\s+sdk\s+(\S+)", build_metadata, re.MULTILINE)
+    require(bool(linked_sdks) and all(sdk == SDK_VERSION for sdk in linked_sdks),
+            f"{name}: 链接 SDK {linked_sdks} 与当前工具链 SDK {SDK_VERSION} 不一致")
     architectures = subprocess.run(["lipo", "-archs", str(executable)],
                                     capture_output=True, text=True, check=True).stdout.split()
     require(platform.machine() in architectures, f"{name}: 不支持当前架构")
@@ -56,4 +64,4 @@ for development in (True, False):
                             capture_output=True, text=True, check=True, timeout=20)
     require(f"App: {name}\n" in sample.stdout, f"{name}: 编译身份不正确")
     print(sample.stdout, end="")
-    print(f"PASS: {name} 元数据、签名、架构及真实采样")
+    print(f"PASS: {name} 元数据、SDK {SDK_VERSION}、签名、架构及真实采样")

@@ -16,7 +16,9 @@
 
 ## 开发和启动
 
-需要 macOS 13 或更新版本，以及 Swift 5.9+ 开发工具链（Xcode 或 Command Line Tools）。
+应用运行需要 macOS 13 或更新版本。开发和构建统一使用 Xcode 26.6（包含 macOS 26.5 SDK），版本记录在 `.xcode-version`；仅安装 Command Line Tools 不满足构建要求。
+
+本地构建优先选择 `/Applications/Xcode_26.6.app`，否则使用当前选中的 Xcode，并检查版本；也可通过 `DEVELOPER_DIR` 指定安装位置。不同 SDK 会影响 macOS 原生控件外观，因此开发版与生产版必须使用相同工具链。
 
 以下命令均在仓库根目录执行。开发运行（默认 Debug，菜单栏和详情标题显示 `DEV`）：
 
@@ -49,9 +51,9 @@ dist/MiniStats.app/Contents/MacOS/MiniStats --sample
 
 ## 持续集成
 
-[CI 工作流](.github/workflows/ci.yml) 在 `main` 推送、所有 PR 和手动触发时运行，分别使用 macOS 15 的 Apple Silicon 与 Intel 环境。每个任务检查脚本语法、锁定依赖、运行单元测试，并构建开发版和生产版；随后验证应用身份、版本、更新配置、内嵌 Sparkle、代码签名和 `--sample` 真实采样。
+[CI 工作流](.github/workflows/ci.yml) 在 `main` 推送、所有 PR 和手动触发时运行，仅使用 macOS 26 的 Apple Silicon（arm64）环境。常规 CI 和 Release 均按 `.xcode-version` 显式选择 Xcode 26.6，并检查 Xcode 和 SDK 版本，不依赖 runner 默认值。任务检查脚本语法、锁定依赖、运行单元测试，并构建开发版和生产版；随后验证应用身份、版本、更新配置、内嵌 Sparkle、代码签名和 `--sample` 真实采样。
 
-SwiftPM 依赖按架构和锁文件缓存；同一分支的新运行会取消旧任务。成功后保存两种应用的 ZIP 7 天，可在 Actions 页面下载。CI 产物使用临时签名，没有更新包 EdDSA 签名，不用于正式更新发布；CI 不读取发布私钥，不运行需要钥匙串的安装测试，也不能替代界面验收。Intel 编译验证不改变现有正式 Release 的 arm64 支持范围。
+SwiftPM 依赖按架构和锁文件缓存；同一分支的新运行会取消旧任务。成功后保存两种应用的 ZIP 7 天，可在 Actions 页面下载。CI 产物使用临时签名，没有更新包 EdDSA 签名，不用于正式更新发布；CI 不读取发布私钥，不运行需要钥匙串的安装测试，也不能替代界面验收。目前 CI 和正式 Release 均只覆盖 arm64，不提供 Intel 构建验证。
 
 本地复现核心检查：
 

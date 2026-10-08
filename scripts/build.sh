@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/select-xcode.sh
 export CLANG_MODULE_CACHE_PATH="${TMPDIR:-/tmp}/ministats-clang-cache"
 CONFIGURATION="${1:-release}"
 case "$CONFIGURATION" in

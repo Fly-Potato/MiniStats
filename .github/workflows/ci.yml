@@ -15,17 +15,9 @@ concurrency:
 
 jobs:
   validate:
-    name: 验证 (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
+    name: 验证 (arm64)
+    runs-on: macos-26
     timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-15
-            arch: arm64
-          - runner: macos-15-intel
-            arch: x86_64
     defaults:
       run:
         shell: bash
@@ -35,13 +27,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 记录工具链
+      - name: 选择并检查 Xcode 26 工具链
         run: |
-          xcodebuild -version
+          export DEVELOPER_DIR="/Applications/Xcode_$(cat .xcode-version).app/Contents/Developer"
+          source scripts/select-xcode.sh
+          printf 'DEVELOPER_DIR=%s\n' "$DEVELOPER_DIR" >> "$GITHUB_ENV"
           swift --version
-          test "$(uname -m)" = "$EXPECTED_ARCH"
-        env:
-          EXPECTED_ARCH: ${{ matrix.arch }}
+          test "$(uname -m)" = arm64
 
       - name: 检查脚本语法
         run: |
@@ -62,7 +54,7 @@ jobs:
             .build/artifacts
             .build/checkouts
             .build/repositories
-          key: swiftpm-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          key: swiftpm-${{ runner.os }}-arm64-${{ hashFiles('Package.swift', 'Package.resolved') }}
 
       - name: 解析锁定依赖
         run: |
@@ -93,7 +85,7 @@ jobs:
       - name: 保存 CI 产物
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: MiniStats-ci-${{ matrix.arch }}
+          name: MiniStats-ci-arm64
           path: dist/*-ci.zip
           retention-days: 7
           if-no-files-found: error

@@ -39,6 +39,8 @@ python3 scripts/release.py prepare --notes docs/releases/0.2.0.md
 
 [Release 工作流](../.github/workflows/release.yml) 在推送 `vX.Y.Z` tag 时触发，检出该 tag 的源码，重新运行 Swift/Python 测试、两种构建和应用包验证，生成 arm64 应用、签名清单和安装包。tag 对应的提交必须已进入 `origin/main`；同一时间只允许一个发布任务运行。完成附件校验后自动公开 Release 并指定 Latest，无需再点击发布。
 
+发版使用 `macos-26` arm64 runner，并按 `.xcode-version` 选择 Xcode 26.6，与本地构建和常规 CI 一致。工具链或 SDK 不符合要求时立即失败，不回退到旧 Xcode；后续升级需同步核对本地安装及 arm64 runner 的可用版本。macOS 26 SDK 不改变应用最低运行版本 macOS 13。
+
 首次使用时，在仓库 **Settings → Environments** 创建 `release` 环境，将允许部署的规则设为 tag 模式 `v*`，不能只允许 `main` 分支。要实现全自动发布，不设置 required reviewers；已有审批规则需要维护者自行调整。添加该环境的 Secret `SPARKLE_PRIVATE_KEY`：值为本地 `MiniStats-updates` 私钥通过 `generate_keys -x` 导出文件的完整文本（Base64 32 字节种子），不是公钥，也不要再次 Base64 编码。由维护者安全完成导出和配置，禁止把值写入源码、运行参数或日志。此工作流不会自动导出或上传本机私钥。GitHub 环境配置见[官方文档](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)。
 
 每次发版先提交并推送递增的版本/构建号及 `docs/releases/<版本>.md`，在普通 CI 与界面验收通过后，对该提交创建并推送 tag。以下示例仅适用于已把配置更新到 0.2.1 的源码：

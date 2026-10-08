@@ -14,7 +14,7 @@ concurrency:
 jobs:
   publish:
     name: 构建并正式发布
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     environment: release
     permissions:
@@ -31,12 +31,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: 选择并检查 Xcode 26 工具链
+        run: |
+          export DEVELOPER_DIR="/Applications/Xcode_$(cat .xcode-version).app/Contents/Developer"
+          source scripts/select-xcode.sh
+          printf 'DEVELOPER_DIR=%s\n' "$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          swift --version
+
       - name: 检查发布来源与版本
         run: |
           test "$(uname -m)" = arm64
           python3 scripts/release.py validate-tag --tag "$RELEASE_TAG"
-          xcodebuild -version
-          swift --version
 
       - name: 缓存 SwiftPM 依赖
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
