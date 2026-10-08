@@ -35,6 +35,30 @@ python3 scripts/release.py prepare --notes docs/releases/0.2.0.md
 
 ## 上传与发布
 
+### GitHub Actions 发版
+
+[Release 工作流](../.github/workflows/release.yml) 在推送 `vX.Y.Z` tag 时触发，检出该 tag 的源码，重新运行 Swift/Python 测试、两种构建和应用包验证，生成 arm64 应用、签名清单和安装包。tag 对应的提交必须已进入 `origin/main`；同一时间只允许一个发布任务运行。完成附件校验后自动公开 Release 并指定 Latest，无需再点击发布。
+
+首次使用时，在仓库 **Settings → Environments** 创建 `release` 环境，将允许部署的规则设为 tag 模式 `v*`，不能只允许 `main` 分支。要实现全自动发布，不设置 required reviewers；已有审批规则需要维护者自行调整。添加该环境的 Secret `SPARKLE_PRIVATE_KEY`：值为本地 `MiniStats-updates` 私钥通过 `generate_keys -x` 导出文件的完整文本（Base64 32 字节种子），不是公钥，也不要再次 Base64 编码。由维护者安全完成导出和配置，禁止把值写入源码、运行参数或日志。此工作流不会自动导出或上传本机私钥。GitHub 环境配置见[官方文档](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)。
+
+每次发版先提交并推送递增的版本/构建号及 `docs/releases/<版本>.md`，在普通 CI 与界面验收通过后，对该提交创建并推送 tag。以下示例仅适用于已把配置更新到 0.2.1 的源码：
+
+```bash
+git tag -a v0.2.1 -m 'MiniStats 0.2.1'
+python3 scripts/release.py validate-tag --tag v0.2.1
+git push origin refs/tags/v0.2.1
+```
+
+tag 格式或版本不一致、提交不在 main、缺少 Secret、密钥不匹配、版本已存在（含草稿）、版本/构建号不递增或源码不干净时，流程拒绝继续。当前的 0.2.0 已存在，下一版应使用新版本；不接受预发布后缀。可使用仓库级 [ministats-release skill](../.agents/skills/ministats-release/SKILL.md) 完成配套准备与跟踪。
+
+私钥只在签名步骤可见，通过标准输入传给 Sparkle，不写入临时文件或子进程环境。上传前验证签名，并保留 Latest 中已签名的历史更新条目。签名附件在 Actions 保存 14 天；上传先创建内部草稿，核对远端两个附件的 SHA-256、大小、状态和目标提交后，自动发布并核对 Latest。校验失败时草稿保持未公开。成功后确认公开清单可下载、生产版能检查到更新，并验证实际安装。
+
+失败时先查看运行日志及远端 Release 状态。尚未创建 Release 时可修复外部环境后重跑；已留下草稿时流程不会覆盖或自动重试，维护者需核对完整性再选择恢复。已公开的附件与 tag 不得覆盖或移动；源码错误通过新版本修复。
+
+CI 仍使用本地临时代码签名，不进行 Developer ID 签名或公证。需要真实私钥的云端签名、正式发布及 GitHub 实际升级应在配置 Secret 后单独验证。
+
+### 本地发布
+
 仅在获授权后，在沙箱外创建草稿：
 
 ```bash

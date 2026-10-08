@@ -1,0 +1,4 @@
+interface:
+  display_name: "MiniStats 发版"
+  short_description: "准备版本与更新说明，验证后推送 tag 并跟踪 MiniStats 自动发布"
+  default_prompt: "使用 $ministats-release 准备并发布 MiniStats 新版本，完成验证后推送版本 tag 并确认自动发布结果。"

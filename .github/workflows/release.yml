@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ministats-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: 构建并正式发布
+    runs-on: macos-15
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: 获取源码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 检查发布来源与版本
+        run: |
+          test "$(uname -m)" = arm64
+          python3 scripts/release.py validate-tag --tag "$RELEASE_TAG"
+          xcodebuild -version
+          swift --version
+
+      - name: 缓存 SwiftPM 依赖
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/artifacts
+            .build/checkouts
+            .build/repositories
+          key: swiftpm-${{ runner.os }}-arm64-${{ hashFiles('Package.swift', 'Package.resolved') }}
+
+      - name: 解析锁定依赖
+        run: |
+          swift package resolve
+          git diff --exit-code -- Package.resolved
+
+      - name: 单元测试
+        run: |
+          swift test --disable-sandbox
+          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+        env:
+          CLANG_MODULE_CACHE_PATH: ${{ runner.temp }}/ministats-clang-cache
+
+      - name: 构建并验证应用
+        run: |
+          bash scripts/build.sh debug
+          bash scripts/build.sh release
+          python3 scripts/verify-build.py
+
+      - name: 准备签名附件
+        run: python3 scripts/release.py prepare --notes "docs/releases/${RELEASE_TAG#v}.md"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+
+      - name: 保存已签名附件
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MiniStats-release-${{ github.ref_name }}-arm64
+          path: |
+            dist/releases/*/MiniStats-*.zip
+            dist/releases/*/appcast.xml
+            dist/releases/*/source-commit.txt
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: 校验附件并发布为 Latest
+        run: python3 scripts/release.py publish --tag "$RELEASE_TAG"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+
+      - name: 写入运行摘要
+        run: |
+          printf '### MiniStats %s\n\narm64 安装包及签名清单已正式发布并设为 Latest。\n' "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"

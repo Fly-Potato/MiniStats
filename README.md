@@ -46,6 +46,26 @@ dist/MiniStats.app/Contents/MacOS/MiniStats --sample
 
 `--sample` 输出一次真实系统采样，必要指标不可用时返回非零退出码；该模式不启动菜单栏界面。
 
+## 持续集成
+
+[CI 工作流](.github/workflows/ci.yml) 在 `main` 推送、所有 PR 和手动触发时运行，分别使用 macOS 15 的 Apple Silicon 与 Intel 环境。每个任务检查脚本语法、锁定依赖、运行单元测试，并构建开发版和生产版；随后验证应用身份、版本、更新配置、内嵌 Sparkle、代码签名和 `--sample` 真实采样。
+
+SwiftPM 依赖按架构和锁文件缓存；同一分支的新运行会取消旧任务。成功后保存两种应用的 ZIP 7 天，可在 Actions 页面下载。CI 产物使用临时签名，没有更新包 EdDSA 签名，不用于正式更新发布；CI 不读取发布私钥，不运行需要钥匙串的安装测试，也不能替代界面验收。Intel 编译验证不改变现有正式 Release 的 arm64 支持范围。
+
+本地复现核心检查：
+
+```bash
+swift test --disable-sandbox
+python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+bash scripts/build.sh debug
+bash scripts/build.sh release
+python3 scripts/verify-build.py
+```
+
+官方 Actions 固定到提交 SHA，Dependabot 每周创建依赖更新 PR；合并前应核对变更和 CI 结果。
+
+[Release 工作流](.github/workflows/release.yml) 在推送 `vX.Y.Z` tag 后自动完成测试、构建、EdDSA 签名和附件校验，正式发布 arm64 安装包及更新清单，并设为 Latest。首次需配置 `release` 环境的签名 Secret，操作步骤见[发布维护说明](docs/releasing.md#github-actions-发版)。仓库级 `$ministats-release` skill 负责版本准备、验证、tag 推送及发布跟踪。
+
 ## 指标口径
 
 - CPU：系统累计 CPU tick 的相邻采样差值，所有核心整体归一化为 0–100%。
@@ -81,6 +101,8 @@ CPU 和内存纵轴固定为 0–100%。网络两条线共用从零开始的纵�
 - `Sources/MiniStats/main.swift`：应用入口与命令行采样模式。
 - `Tests/MiniStatsTests/`：指标计算、速率格式化、历史窗口与图表数据处理测试。
 - `scripts/`：构建、打包与启动脚本。
+- `.github/`：CI 工作流与 Actions 依赖更新配置。
+- `.agents/skills/ministats-release/`：仓库级发版 skill。
 - `.build/`、`dist/`：已被 Git 忽略的构建产物；目前没有独立资源目录。
 
 ## 当前限制

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: 验证 (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: 获取源码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 记录工具链
+        run: |
+          xcodebuild -version
+          swift --version
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+
+      - name: 检查脚本语法
+        run: |
+          for script in scripts/*.sh; do
+            bash -n "$script"
+          done
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          for script in Path("scripts").glob("*.py"):
+              ast.parse(script.read_text(), filename=str(script))
+          PY
+
+      - name: 缓存 SwiftPM 依赖
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/artifacts
+            .build/checkouts
+            .build/repositories
+          key: swiftpm-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
+
+      - name: 解析锁定依赖
+        run: |
+          swift package resolve
+          git diff --exit-code -- Package.resolved
+
+      - name: 单元测试
+        run: |
+          swift test --disable-sandbox
+          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+        env:
+          CLANG_MODULE_CACHE_PATH: ${{ runner.temp }}/ministats-clang-cache
+
+      - name: 构建开发版
+        run: bash scripts/build.sh debug
+
+      - name: 构建生产版
+        run: bash scripts/build.sh release
+
+      - name: 验证应用包与真实采样
+        run: python3 scripts/verify-build.py
+
+      - name: 打包 CI 产物
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "dist/MiniStats Dev.app" dist/MiniStats-Dev-ci.zip
+          ditto -c -k --sequesterRsrc --keepParent dist/MiniStats.app dist/MiniStats-ci.zip
+
+      - name: 保存 CI 产物
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MiniStats-ci-${{ matrix.arch }}
+          path: dist/*-ci.zip
+          retention-days: 7
+          if-no-files-found: error

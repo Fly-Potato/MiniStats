@@ -65,3 +65,7 @@ docs: 补充提交信息规范
 ## 合并请求要求
 
 合并请求应说明行为变化、验证方式和已知限制；存在关联问题时附上链接，界面变更附截图。涉及指标定义或支持的网络接口范围时，明确说明变化及其影响。
+
+## 仓库级发版 Skill
+
+发版、推送发布 tag 或排查发版失败时使用 [.agents/skills/ministats-release/SKILL.md](.agents/skills/ministats-release/SKILL.md)。版本 tag 推送会自动公开 Release 并切换 Latest；仅修改工作流或普通提交推送不代表授权发版。具体流程由 skill 与发布维护文档维护。
