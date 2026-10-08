@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
-  "build": "2",
+  "version": "0.3.0",
+  "build": "3",
   "feedURL": "https://github.com/Fly-Potato/MiniStats/releases/latest/download/appcast.xml"
 }
