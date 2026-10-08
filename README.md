@@ -1,6 +1,6 @@
 # MiniStats
 
-轻量原生 macOS 菜单栏资源监控器，使用 SwiftUI，无第三方依赖。
+轻量原生 macOS 菜单栏资源监控器，使用 SwiftUI，更新功能使用 Sparkle。
 
 ## 当前功能
 
@@ -11,6 +11,7 @@
 - 悬停图表可查看对应时间与数值；实时数值每秒更新，图表在面板显示时每两秒更新。
 - 不显示 Dock 图标，可从详情面板退出。
 - 提供命令行采样模式，便于验证真实系统指标。
+- 生产版提供“检查更新”入口和每 24 小时自动检查开关；更新包及清单通过签名校验，安装由用户确认。开发版禁用更新。
 
 ## 开发和启动
 
@@ -41,6 +42,8 @@ dist/MiniStats.app/Contents/MacOS/MiniStats --sample
 
 可以在 Xcode 中打开 `Package.swift` 编辑项目。构建脚本生成本地临时签名应用；尚未配置 Developer ID 签名或公证。
 
+首次构建需联网下载固定版本的 Sparkle。生产版从 `config/release.json` 读取版本与更新地址，并将仓库中的更新公钥嵌入应用；普通构建不需要发布私钥。
+
 `--sample` 输出一次真实系统采样，必要指标不可用时返回非零退出码；该模式不启动菜单栏界面。
 
 ## 指标口径
@@ -56,6 +59,14 @@ dist/MiniStats.app/Contents/MacOS/MiniStats --sample
 
 CPU 和内存纵轴固定为 0–100%。网络两条线共用从零开始的纵轴，单位统一为 KB/s、MB/s 或 GB/s；峰值增大时立即扩展范围，持续低负载 30 秒后才缩小，减少跳动。长时间窗口通过保留每个时间桶的首尾与峰谷减少绘制点数，悬停数值仍来自原始采样。
 
+## 应用更新
+
+生产版通过 GitHub Releases 获取更新，首次由 Sparkle 询问是否允许自动检查，也可在详情面板修改。点击“检查更新”可手动检查；发现新版后通过更新窗口查看说明、下载并安装重启。开发版不访问更新源。
+
+旧版本需要手动安装一次带更新器的新版本。日常使用建议将应用放到 `~/Applications` 或 `/Applications`；更新后设置保留，内存历史重新开始记录。当前未进行 Apple 公证，初次下载可能出现系统安全提示。
+
+更新器已接入，首次正式 Release 尚需发布后更新源才可用。发布步骤、密钥备份及隔离测试见 [发布维护说明](docs/releasing.md)。
+
 ## 项目结构
 
 - `Package.swift`：平台要求、可执行目标和测试目标。
@@ -63,6 +74,8 @@ CPU 和内存纵轴固定为 0–100%。网络两条线共用从零开始的纵�
 - `Sources/MiniStats/Monitor.swift`：采样状态和定时更新。
 - `Sources/MiniStats/MiniStatsApp.swift`：应用场景与菜单栏标签。
 - `Sources/MiniStats/BuildIdentity.swift`：按编译配置区分开发版和生产版。
+- `Sources/MiniStats/UpdateManager.swift`：生产版更新器与检查开关。
+- `config/`：统一版本配置、更新地址及公钥（不包含私钥）。
 - `Sources/MiniStats/Dashboard.swift`：详情图表、时间范围切换与悬停交互。
 - `Sources/MiniStats/History.swift`：历史缓存、时间窗口裁剪、峰谷保留与网络纵轴缩放。
 - `Sources/MiniStats/main.swift`：应用入口与命令行采样模式。

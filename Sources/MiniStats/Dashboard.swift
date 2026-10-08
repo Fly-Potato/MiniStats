@@ -20,6 +20,7 @@ private struct DashboardSnapshot {
 
 struct Dashboard: View {
     @ObservedObject var monitor: Monitor
+    @ObservedObject var updates: UpdateManager
     @AppStorage("historyMinutes") private var storedMinutes = 10
     @State private var visible = false
     @State private var snapshot = DashboardSnapshot()
@@ -59,6 +60,21 @@ struct Dashboard: View {
                     }
                 }
                 .frame(height: 450)
+            }
+            Divider()
+            HStack {
+                Text("v\(updates.version)").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if !BuildIdentity.isDevelopment {
+                    Button("检查更新…") { updates.check() }.disabled(!updates.canCheck)
+                }
+            }
+            if updates.isConfigured {
+                Toggle("每 24 小时自动检查更新", isOn: Binding(
+                    get: { updates.automaticChecks }, set: { updates.setAutomaticChecks($0) }
+                )).font(.caption)
+            } else {
+                Text(updates.status).font(.caption2).foregroundStyle(.secondary)
             }
             HStack {
                 Text(recordingLabel).font(.caption).foregroundStyle(.secondary)
