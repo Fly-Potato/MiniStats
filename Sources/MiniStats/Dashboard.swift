@@ -21,6 +21,7 @@ private struct DashboardSnapshot {
 struct Dashboard: View {
     @ObservedObject var monitor: Monitor
     @ObservedObject var updates: UpdateManager
+    @ObservedObject var loginItems: LoginItemManager
     @AppStorage("historyMinutes") private var storedMinutes = 10
     @State private var visible = false
     @State private var snapshot = DashboardSnapshot()
@@ -62,6 +63,20 @@ struct Dashboard: View {
                 .frame(height: 450)
             }
             Divider()
+            Toggle("开机自启", isOn: Binding(
+                get: { loginItems.isOn }, set: { loginItems.setEnabled($0) }
+            ))
+            .font(.caption)
+            .disabled(!loginItems.isAvailable)
+            if let detail = loginItems.detail {
+                Text(detail).font(.caption2).foregroundStyle(.secondary)
+            }
+            if let error = loginItems.errorMessage {
+                Text(error).font(.caption2).foregroundStyle(.red)
+            }
+            if loginItems.requiresApproval {
+                Button("打开登录项设置…") { loginItems.openSettings() }.font(.caption)
+            }
             HStack {
                 Text("v\(updates.version)").font(.caption).foregroundStyle(.secondary)
                 Spacer()
@@ -87,11 +102,15 @@ struct Dashboard: View {
         .padding(16)
         .frame(width: 400)
         .onAppear {
+            loginItems.refresh()
             visible = true
             if storedMinutes != minutes { storedMinutes = minutes }
             updateCharts()
         }
         .onDisappear { visible = false }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            loginItems.refresh()
+        }
         .onReceive(refresh) { _ in if visible { updateCharts() } }
         .onChange(of: storedMinutes) { _ in
             networkScale = NetworkScale()

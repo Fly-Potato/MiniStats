@@ -4,10 +4,11 @@ import AppKit
 struct MiniStatsApp: App {
     @StateObject private var monitor = Monitor()
     @StateObject private var updates = UpdateManager()
+    @StateObject private var loginItems = LoginItemManager()
 
     var body: some Scene {
         MenuBarExtra {
-            Dashboard(monitor: monitor, updates: updates)
+            Dashboard(monitor: monitor, updates: updates, loginItems: loginItems)
         } label: {
             Image(nsImage: MenuBarLabel.image(
                 upload: MetricFormat.speed(monitor.network?.upload),
