@@ -136,8 +136,14 @@ def draft(verify_tag=False):
 
 
 def release_info(tag):
-    result = json.loads(run("gh", "api", f"repos/{REPO}/releases/tags/{tag}",
-                            capture_output=True, text=True).stdout)
+    # GitHub's by-tag endpoint excludes drafts. List releases to inspect the
+    # newly created draft before publishing, retaining asset digest metadata.
+    pages = json.loads(run("gh", "api", f"repos/{REPO}/releases?per_page=100", "--paginate", "--slurp",
+                           capture_output=True, text=True).stdout)
+    matches = [item for page in pages for item in page if item["tag_name"] == tag]
+    if len(matches) != 1:
+        raise SystemExit("未找到唯一的目标 Release，请核对远端状态；不要覆盖附件或重打 tag")
+    result = matches[0]
     return {"tagName": result["tag_name"], "isDraft": result["draft"], "isPrerelease": result["prerelease"],
             "assets": result["assets"], "url": result["html_url"], "targetCommitish": result["target_commitish"]}
 

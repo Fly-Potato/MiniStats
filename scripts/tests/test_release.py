@@ -98,6 +98,24 @@ class ReleaseTests(unittest.TestCase):
             self.assertIn("--draft=false", edits[0])
             self.assertIn("--latest", edits[0])
 
+    def testReleaseLookupIncludesDraftOnLaterPageWithDigests(self):
+        draft = {"tag_name": "v0.2.1", "draft": True, "prerelease": False,
+                 "assets": [{"digest": "sha256:test"}], "target_commitish": "commit",
+                 "html_url": "https://example.com/draft"}
+        pages = [[{"tag_name": "v0.2.0"}], [draft]]
+        with patch.object(release, "run", return_value=subprocess.CompletedProcess([], 0, stdout=json.dumps(pages))) as command:
+            info = release.release_info("v0.2.1")
+        self.assertTrue(info["isDraft"])
+        self.assertEqual(info["assets"][0]["digest"], "sha256:test")
+        self.assertIn("--paginate", command.call_args.args)
+        self.assertNotIn("releases/tags", " ".join(command.call_args.args))
+
+    def testReleaseLookupRejectsMissingOrAmbiguousTag(self):
+        for pages in ([[]], [[{"tag_name": "v0.2.1"}, {"tag_name": "v0.2.1"}]]):
+            with patch.object(release, "run", return_value=subprocess.CompletedProcess([], 0, stdout=json.dumps(pages))):
+                with self.assertRaises(SystemExit):
+                    release.release_info("v0.2.1")
+
     def testUploadMismatchLeavesDraftUnpublished(self):
         info = self.upload_fixture()
         info["assets"][0]["digest"] = "sha256:incorrect"
