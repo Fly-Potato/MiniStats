@@ -11,6 +11,7 @@ configuration, output = sys.argv[1:]
 development = configuration == "debug"
 info = {
     "CFBundleExecutable": "MiniStats",
+    "CFBundleIconFile": "AppIcon",
     "CFBundleIdentifier": "local.ministats.app.dev" if development else "local.ministats.app",
     "CFBundleName": "MiniStats Dev" if development else "MiniStats",
     "CFBundleDisplayName": "MiniStats Dev" if development else "MiniStats",

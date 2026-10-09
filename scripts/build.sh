@@ -15,6 +15,7 @@ APP="dist/$APP_NAME.app"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN_DIR/MiniStats" "$APP/Contents/MacOS/MiniStats"
 python3 scripts/write-plist.py "$CONFIGURATION" "$APP/Contents/Info.plist"
+bash scripts/build-icon.sh "$APP/Contents/Resources/AppIcon.icns"
 SPARKLE_FRAMEWORK="$PWD/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
 if [ ! -d "$SPARKLE_FRAMEWORK" ]; then
     echo "Sparkle framework missing: $SPARKLE_FRAMEWORK" >&2

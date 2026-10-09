@@ -28,6 +28,7 @@ for development in (True, False):
         "CFBundleName": name,
         "CFBundleDisplayName": name,
         "CFBundleExecutable": "MiniStats",
+        "CFBundleIconFile": "AppIcon",
         "CFBundleShortVersionString": CONFIG["version"],
         "CFBundleVersion": CONFIG["build"],
         "LSMinimumSystemVersion": "13.0",
@@ -47,6 +48,10 @@ for development in (True, False):
         })
     for key, value in expected.items():
         require(info.get(key) == value, f"{name}: {key} 应为 {value!r}")
+
+    icon = app / "Contents/Resources/AppIcon.icns"
+    require(icon.is_file(), f"{name}: 缺少应用图标")
+    require(icon.read_bytes().startswith(b"icns"), f"{name}: 应用图标不是有效的 ICNS 文件")
 
     framework = app / "Contents/Frameworks/Sparkle.framework"
     require((framework / "Sparkle").is_file(), f"{name}: 缺少 Sparkle framework")
