@@ -80,7 +80,7 @@ class ReleaseTests(unittest.TestCase):
             file.write_bytes(b"test uploaded bytes")
             assets.append({"name": name, "size": file.stat().st_size, "state": "uploaded",
                            "digest": "sha256:" + hashlib.sha256(file.read_bytes()).hexdigest()})
-        return {"tagName": "v0.2.1", "isDraft": True, "isPrerelease": False, "assets": assets,
+        return {"id": 42, "tagName": "v0.2.1", "isDraft": True, "isPrerelease": False, "assets": assets,
                 "targetCommitish": "commit", "url": "https://example.com/release"}
 
     def testPublishChecksAttachmentsBeforeGoingPublic(self):
@@ -93,13 +93,14 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "release_info", side_effect=[info, published]), patch.object(release, "run", side_effect=fake_run) as command:
             release.publish("v0.2.1")
             draft.assert_called_once_with(verify_tag=True)
-            edits = [call.args for call in command.call_args_list if call.args[:3] == ("gh", "release", "edit")]
+            edits = [call.args for call in command.call_args_list if "PATCH" in call.args]
             self.assertEqual(len(edits), 1)
-            self.assertIn("--draft=false", edits[0])
-            self.assertIn("--latest", edits[0])
+            self.assertIn("repos/Fly-Potato/MiniStats/releases/42", edits[0])
+            self.assertIn("draft=false", edits[0])
+            self.assertIn("make_latest=true", edits[0])
 
     def testReleaseLookupIncludesDraftOnLaterPageWithDigests(self):
-        draft = {"tag_name": "v0.2.1", "draft": True, "prerelease": False,
+        draft = {"id": 42, "tag_name": "v0.2.1", "draft": True, "prerelease": False,
                  "assets": [{"digest": "sha256:test"}], "target_commitish": "commit",
                  "html_url": "https://example.com/draft"}
         pages = [[{"tag_name": "v0.2.0"}], [draft]]
@@ -112,9 +113,45 @@ class ReleaseTests(unittest.TestCase):
 
     def testReleaseLookupRejectsMissingOrAmbiguousTag(self):
         for pages in ([[]], [[{"tag_name": "v0.2.1"}, {"tag_name": "v0.2.1"}]]):
-            with patch.object(release, "run", return_value=subprocess.CompletedProcess([], 0, stdout=json.dumps(pages))):
+            with patch.object(release, "run", return_value=subprocess.CompletedProcess([], 0, stdout=json.dumps(pages))), patch("time.sleep"):
                 with self.assertRaises(SystemExit):
                     release.release_info("v0.2.1")
+
+    def testReleaseLookupWaitsUntilCreatedDraftBecomesVisible(self):
+        draft = {"id": 42, "tag_name": "v0.2.1", "draft": True, "prerelease": False,
+                 "assets": [], "target_commitish": "commit", "html_url": "https://example.com/draft"}
+        responses = [[], [], [draft]]
+        with patch.object(release, "run", side_effect=[
+                subprocess.CompletedProcess([], 0, stdout=json.dumps([page])) for page in responses]) as command, \
+             patch("time.sleep") as sleep:
+            info = release.release_info("v0.2.1")
+        self.assertEqual(info["id"], 42)
+        self.assertEqual(command.call_count, 3)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [2, 4])
+        self.assertTrue(all(call.args[:2] == ("gh", "api") for call in command.call_args_list))
+
+    def testMissingReleaseStopsAfterBoundedReads(self):
+        with patch.object(release, "run", return_value=subprocess.CompletedProcess([], 0, stdout="[[]]")) as command, \
+             patch("time.sleep") as sleep:
+            with self.assertRaises(SystemExit):
+                release.release_info("v0.2.1")
+        self.assertEqual(command.call_count, 6)
+        self.assertEqual(sleep.call_count, 5)
+        self.assertLessEqual(sum(call.args[0] for call in sleep.call_args_list), 60)
+
+    def testAmbiguousReleaseAndApiFailureNeverRetry(self):
+        with patch.object(release, "run", return_value=subprocess.CompletedProcess([], 0, stdout=
+                '[[{"tag_name":"v0.2.1"},{"tag_name":"v0.2.1"}]]')) as command, patch("time.sleep") as sleep:
+            with self.assertRaises(SystemExit):
+                release.release_info("v0.2.1")
+            command.assert_called_once()
+            sleep.assert_not_called()
+        with patch.object(release, "run", side_effect=subprocess.CalledProcessError(1, ["gh", "api"])) as command, \
+             patch("time.sleep") as sleep:
+            with self.assertRaises(subprocess.CalledProcessError):
+                release.release_info("v0.2.1")
+            command.assert_called_once()
+            sleep.assert_not_called()
 
     def testUploadMismatchLeavesDraftUnpublished(self):
         info = self.upload_fixture()
@@ -123,7 +160,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "release_info", return_value=info), patch.object(release, "run", return_value=subprocess.CompletedProcess([], 0, stdout="commit")) as command:
             with self.assertRaises(SystemExit):
                 release.publish("v0.2.1")
-            self.assertFalse(any(call.args[:3] == ("gh", "release", "edit") for call in command.call_args_list))
+            self.assertFalse(any("PATCH" in call.args for call in command.call_args_list))
 
     def testSecretOnlyPassedThroughStdin(self):
         with patch.dict(os.environ, {"SPARKLE_PRIVATE_KEY": "test-only"}), patch.object(release.subprocess, "run") as command:

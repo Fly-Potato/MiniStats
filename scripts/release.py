@@ -8,6 +8,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import time
 import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -136,16 +137,24 @@ def draft(verify_tag=False):
 
 
 def release_info(tag):
-    # GitHub's by-tag endpoint excludes drafts. List releases to inspect the
-    # newly created draft before publishing, retaining asset digest metadata.
-    pages = json.loads(run("gh", "api", f"repos/{REPO}/releases?per_page=100", "--paginate", "--slurp",
-                           capture_output=True, text=True).stdout)
-    matches = [item for page in pages for item in page if item["tag_name"] == tag]
-    if len(matches) != 1:
-        raise SystemExit("未找到唯一的目标 Release，请核对远端状态；不要覆盖附件或重打 tag")
-    result = matches[0]
-    return {"tagName": result["tag_name"], "isDraft": result["draft"], "isPrerelease": result["prerelease"],
-            "assets": result["assets"], "url": result["html_url"], "targetCommitish": result["target_commitish"]}
+    # The list endpoint includes drafts, but a newly created release may not
+    # be visible immediately. Retry reads only; never repeat creation/upload.
+    for attempt in range(6):
+        pages = json.loads(run("gh", "api", f"repos/{REPO}/releases?per_page=100", "--paginate", "--slurp",
+                               capture_output=True, text=True).stdout)
+        matches = [item for page in pages for item in page if item["tag_name"] == tag]
+        if len(matches) > 1:
+            raise SystemExit("目标 Release 不唯一，请核对远端状态；不要覆盖附件或重打 tag")
+        if matches:
+            result = matches[0]
+            return {"id": result["id"], "tagName": result["tag_name"], "isDraft": result["draft"],
+                    "isPrerelease": result["prerelease"], "assets": result["assets"],
+                    "url": result["html_url"], "targetCommitish": result["target_commitish"]}
+        if attempt < 5:
+            delay = min(2 ** (attempt + 1), 30)
+            print(f"暂未查到 {tag}，{delay} 秒后重试读取（{attempt + 1}/6）", flush=True)
+            time.sleep(delay)
+    raise SystemExit("等待后仍未找到目标 Release，已有草稿可能保留；请核对远端状态，不要覆盖附件或重打 tag")
 
 
 def verify_uploaded_assets(info, folder, version):
@@ -172,7 +181,8 @@ def publish(tag):
     if info["targetCommitish"] != commit:
         raise SystemExit("远端 Release 目标提交不一致，草稿保持未公开")
     verify_uploaded_assets(info, folder, version)
-    run("gh", "release", "edit", tag, "--repo", REPO, "--draft=false", "--latest")
+    run("gh", "api", "--method", "PATCH", f"repos/{REPO}/releases/{info['id']}",
+        "-F", "draft=false", "-f", "make_latest=true")
     published = release_info(tag)
     latest = run("gh", "api", f"repos/{REPO}/releases/latest", "--jq", ".tag_name", capture_output=True, text=True).stdout.strip()
     if published["isDraft"] or published["isPrerelease"] or latest != tag:
